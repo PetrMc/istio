@@ -1513,3 +1513,31 @@ func TestConvertAuthorizationPolicyNilEntries(t *testing.T) {
 		})
 	}
 }
+
+func TestRejectedAuthorizationPoliciesKeepStatus(t *testing.T) {
+	stop := test.NewStop(t)
+	opts := krt.NewOptionsBuilder(stop, "", krt.GlobalDebugHandler)
+	rejected := func(name string, action v1beta1.AuthorizationPolicy_Action) *securityclient.AuthorizationPolicy {
+		return &securityclient.AuthorizationPolicy{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: testNS},
+			Spec:       v1beta1.AuthorizationPolicy{Action: action},
+		}
+	}
+	authz := krt.NewStaticCollection(nil, []*securityclient.AuthorizationPolicy{
+		rejected("audit", v1beta1.AuthorizationPolicy_AUDIT),
+		rejected("custom", v1beta1.AuthorizationPolicy_CUSTOM),
+	}, opts.WithName("authz")...)
+	peerAuths := krt.NewStaticCollection[*securityclient.PeerAuthentication](nil, nil, opts.WithName("peerauths")...)
+	waypoints := krt.NewStaticCollection[Waypoint](nil, nil, opts.WithName("waypoints")...)
+	meshConfig := krt.NewStatic(&MeshConfig{MeshConfig: mesh.DefaultMeshConfig()}, true, opts.WithName("mesh")...)
+
+	policies, _ := PolicyCollections(authz, peerAuths, meshConfig, waypoints, opts, FeatureFlags{})
+	policies.WaitUntilSynced(stop)
+
+	for _, name := range []string{"audit", "custom"} {
+		pol := policies.GetKey(testNS + "/" + name)
+		assert.Equal(t, pol != nil, true)
+		assert.Equal(t, pol.Source.Name, name)
+		assert.Equal(t, pol.Binding.Bound, false)
+	}
+}

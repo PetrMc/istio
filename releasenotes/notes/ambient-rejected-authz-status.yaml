@@ -1,0 +1,6 @@
+apiVersion: release-notes/v2
+kind: bug-fix
+area: security
+releaseNotes:
+  - |
+    **Fixed** ambient `AuthorizationPolicy` status where only one rejected policy in the cluster (for example `CUSTOM` or `AUDIT` action, or dry-run when unsupported) got its `ZtunnelAccepted` condition.

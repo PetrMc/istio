@@ -1771,6 +1771,10 @@ func (i WorkloadAuthorization) Equals(other WorkloadAuthorization) bool {
 }
 
 func (i WorkloadAuthorization) ResourceName() string {
+	// rejected policies have status but no Authorization, key them by source so they don't collide
+	if i.Authorization == nil {
+		return i.Source.Namespace + "/" + i.Source.Name
+	}
 	return i.Authorization.GetNamespace() + "/" + i.Authorization.GetName()
 }
 
